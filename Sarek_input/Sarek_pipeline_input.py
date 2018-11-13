@@ -217,9 +217,11 @@ class SelectVariantCalling:
         out, err = code_pattern.communicate()
 
         os.chdir(wd)
+
         fastqfiles = out.split("\n")
-        if not fastqfiles:
-            sys.exit("No fastq files in the current folder. Please especify the path in --path.")
+
+        if len(fastqfiles) < 2:
+            sys.exit("No full fastq files pair in the current folder. Please especify the path in --path.")
         self.fastq = sorted(fastqfiles)
         return self
 
