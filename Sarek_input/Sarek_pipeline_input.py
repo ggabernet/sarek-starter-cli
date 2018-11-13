@@ -139,6 +139,7 @@ class SelectVariantCalling:
                                             data_dna_df.loc[:, 'Status'], data_dna_df.loc[:, 'Test_sample_Code'])]
         self.fastq_paths = data_dna_df.loc[:, 'VCpath'].tolist()
         self.VC_table = data_dna_df
+        return self
 
 
     def print_tree(self, file_name='tree.txt'):
@@ -183,7 +184,7 @@ class SelectVariantCalling:
 
         self.tree = tree_dict
 
-        return
+        return self
 
     def organize_dirs(self, path, file_name_contains='Test'):
         """
@@ -207,7 +208,6 @@ class SelectVariantCalling:
         wd = os.getcwd()
         os.chdir(self.path)
 
-
         # Generating folders and sorting fastq files into folders
         for name, npath in zip(self.VC_table.loc[:, fname_col], self.VC_table.loc[:, 'VCpath'].tolist()):
             subprocess.call("mkdir -p %s" % npath, shell=True, stdout=True)
@@ -218,8 +218,10 @@ class SelectVariantCalling:
 
         os.chdir(wd)
         fastqfiles = out.split("\n")
+        if not fastqfiles:
+            sys.exit("No fastq files in the current folder. Please especify the path in --path.")
         self.fastq = sorted(fastqfiles)
-        return
+        return self
 
     def generate_input_file(self, patternR1='_R1_', patternR2='_R2_',
                             pattern_lane='_L[0-9]{3}[_\.]'):
@@ -278,6 +280,7 @@ class SelectVariantCalling:
             file_name = self.path + file_name
         self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
                              quotechar='', doublequote=False, line_terminator='\n')
+        return self
 
 
 if __name__ == '__main__':
