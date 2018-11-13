@@ -9,6 +9,8 @@ import csv
 import argparse
 import os
 
+pd.options.mode.chained_assignment = None
+
 # Static functions
 
 
@@ -65,27 +67,27 @@ class SelectVariantCalling:
             print "These samples do not have parents and won't be considered:"
             print ngs_df[ngs_df.loc[:, 'NGS_sample_Parents_code'] == ''].loc[:, 'NGS_sample_Code'].tolist()
 
-        test_df = sample_df[sample_df['Sample Type'] == 'Q_TEST_SAMPLE']
+        test_df = sample_df[sample_df.loc[:, 'Sample Type'] == 'Q_TEST_SAMPLE']
         test_df.columns = ["Test_sample_" + i for i in test_df.columns]
         test_df.loc[:, 'Test_sample_Parents_code'] = [self.code_pattern.search(str(row)).group(0)
                                                       if self.code_pattern.search(str(row)) else '' for row in
                                                       test_df.loc[:, 'Test_sample_Parents']]
         test_df.head()
-        if test_df[test_df['Test_sample_Parents_code'] == ''].shape[0] > 0:
+        if test_df[test_df.loc[:, 'Test_sample_Parents_code'] == ''].shape[0] > 0:
             print "These samples do not have parents and won't be considered:"
-            print test_df[test_df['Test_sample_Parents_code'] == '']
+            print test_df[test_df.loc[:, 'Test_sample_Parents_code'] == '']
 
-        biol_df = sample_df[sample_df['Sample Type'] == 'Q_BIOLOGICAL_SAMPLE']
+        biol_df = sample_df[sample_df.loc[:, 'Sample Type'] == 'Q_BIOLOGICAL_SAMPLE']
         biol_df.columns = ["Biol_sample_" + i for i in biol_df.columns]
         biol_df.loc[:, 'Biol_sample_Parents_code'] = [self.code_pattern.search(str(row)).group(0)
                                                       if self.code_pattern.search(str(row)) else '' for row in
                                                       biol_df.loc[:, 'Biol_sample_Parents']]
         biol_df.head()
-        if biol_df[biol_df['Biol_sample_Parents_code'] == ''].shape[0] > 0:
+        if biol_df[biol_df.loc[:, 'Biol_sample_Parents_code'] == ''].shape[0] > 0:
             print "These samples do not have parents and won't be considered:"
-            print biol_df[biol_df['Biol_sample_Parents_code'] == '']
+            print biol_df[biol_df.loc[:, 'Biol_sample_Parents_code'] == '']
 
-        exp_df = exp_df[exp_df['Experiment Type'] == 'Q_NGS_MEASUREMENT']
+        exp_df = exp_df[exp_df.loc[:, 'Experiment Type'] == 'Q_NGS_MEASUREMENT']
         exp_df.columns = ["Exp_" + i for i in exp_df.columns]
 
         ngs_exp_df = ngs_df.merge(exp_df, how='left', left_on='NGS_sample_Experiment',
@@ -123,14 +125,14 @@ class SelectVariantCalling:
         # Annotating if tumor
         # TODO: give possibility of changing tumor regex
         tumor_name = re.compile('[Tt][uU][mM][oO][rR]')
-        data_df['IsTumor'] = [1 if bool(re.search(tumor_name, row)) else 0 for row in
+        data_df.loc[:, 'IsTumor'] = [1 if bool(re.search(tumor_name, row)) else 0 for row in
                               data_df.loc[:, 'Biol_sample_Primary tissue/body fluid']]
-        data_df['Status'] = ['Tumor' if row == 1 else 'Normal' for row in data_df.loc[:, 'IsTumor']]
+        data_df.loc[:, 'Status'] = ['Tumor' if row == 1 else 'Normal' for row in data_df.loc[:, 'IsTumor']]
         data_df.head()
         print 'Added boolean tumor annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1]
 
         # Selecting only DNA test samples
-        data_dna_df = data_df[data_df['Test_sample_Sample type'] == 'DNA [DNA]']
+        data_dna_df = data_df[data_df.loc[:,'Test_sample_Sample type'] == 'DNA [DNA]']
         print 'Selected only DNA samples. Rows:', data_dna_df.shape[0], 'Cols:', data_dna_df.shape[1]
 
         # Defining path
@@ -257,18 +259,18 @@ class SelectVariantCalling:
         filenames_df = pd.DataFrame({'Lane': fasta_lanes, 'Fasta_R1': fasta_R1, 'Fasta_R2': fasta_R2})
 
         test_codes = []
-        for n, path in enumerate(self.VC_table['VCpath'].tolist()):
-            idx = [bool(re.search(path, filename)) for filename in filenames_df['Fasta_R1']]
+        for n, path in enumerate(self.VC_table.loc[:,'VCpath'].tolist()):
+            idx = [bool(re.search(path, filename)) for filename in filenames_df.loc[:,'Fasta_R1']]
             test_codes = test_codes + [self.VC_table.loc[n, 'Test_sample_Code']] * sum(idx)
 
-        filenames_df['Codes'] = test_codes
+        filenames_df.loc[:, 'Codes'] = test_codes
         # TODO: sex is currently hard-coded
-        filenames_df['Sex'] = ['XY'] * len(test_codes)
+        filenames_df.loc[:, 'Sex'] = ['XY'] * len(test_codes)
 
         VC_table_input = self.VC_table.merge(filenames_df, how='right',
                                               left_on='Test_sample_Code', right_on='Codes', suffixes=('', ''))
 
-        VC_table_input = VC_table_input[['Entity', 'Sex', 'IsTumor', 'Codes', 'Lane', 'Fasta_R1', 'Fasta_R2']]
+        VC_table_input = VC_table_input.loc[:, ['Entity', 'Sex', 'IsTumor', 'Codes', 'Lane', 'Fasta_R1', 'Fasta_R2']]
         self.input_df = VC_table_input
         return self
 
