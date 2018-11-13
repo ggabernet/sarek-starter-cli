@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import csv
+import argparse
 
 # Static functions
 
@@ -184,14 +185,13 @@ class SelectVariantCalling:
 
         return
 
-    def organize_dirs(self, path, file_name_contains='Test'):
-        # TODO: add path variable and change working directory to this path
+    def organize_dirs(self, path=".", file_name_contains='Test'):
         """
         Generating directory paths and organizing files into directories
+        :param path: [str] path of the directory containing the fastq files.
         :param file_name_contains: [str] Which kind of identifier needs to be searched in the fastq files.
                         Choose from: 'Test' (QBiC test sample code), 'Secondary_name' (IMGAG sample code
                         stored in the Secondary name field).
-        :param path: [str] path of the directory containing the fastq files.
         :return:
         """
 
@@ -202,10 +202,12 @@ class SelectVariantCalling:
         else:
             sys.exit('Invalid file_name_contains paramter, choose from ["Test", "Secondary_name"].\n')
 
+        subprocess.call("cd %s" % path, shell=True, stdout=True)
+
         # Generating folders and sorting fastq files into folders
-        for name, path in zip(self.VC_table.loc[:, fname_col], self.VC_table.loc[:, 'VCpath'].tolist()):
-            subprocess.call("mkdir -p %s" % path, shell=True, stdout=True)
-            subprocess.Popen("mv %s* %s" % (name, path), shell=True, stdout=True)
+        for name, npath in zip(self.VC_table.loc[:, fname_col], self.VC_table.loc[:, 'VCpath'].tolist()):
+            subprocess.call("mkdir -p %s" % npath, shell=True, stdout=True)
+            subprocess.Popen("mv %s* %s" % (name, npath), shell=True, stdout=True)
 
         code_pattern = subprocess.Popen("find `pwd` -name '*.fastq.gz'", shell=True, stdout=subprocess.PIPE)
         out, err = code_pattern.communicate()
@@ -269,45 +271,31 @@ class SelectVariantCalling:
         self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE, quotechar='',
                              doublequote=False)
 
-# Print usage static function
-def print_usage():
-    """
-    Prints usage.
-    :return:
-    """
-    # TODO: finish writting usage
-    print "Usage:"
-    print "Sarek_pipeline_input project sample.tsv experiment.tsv " \
-          "file_name_contains patternR1 patternR2 pattern_lane\n"
-    print "Arguments:\n"
-    print "project: string indicating project code. E.g. 'QBMEM'"
-    print "sample.tsv: /path/to/sample_tsv_file.tsv"
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("project", type=str, help="QBiC project code for which VC should be calculated.")
+    parser.add_argument("sample_tsv", type=str, help="Path to the sample table tsv file extracted from OpenBIS.")
+    parser.add_argument("experiment_tsv", type=str, help="Path to the experiment table tsv file extracted from OpenBIS.")
+    parser.add_argument("-p", "--path", type=str, default=".", help="Path to folder with fastq files.")
+    parser.add_argument("-c", "--contains", type=str, choices=['Test', 'Secondary_name'], default='Test',
+                        help="String of the identifier that is contained in the fastq filename.\n "
+                             "'Test' stands for QBiC test sample code.\n"
+                             "'Secondary_name' stands for NGS sample secondary name "
+                             "(usu. Genetics ID).")
+    parser.add_argument("-pR1", "--patternR1", type=str, default='_R1_', help="Regex to look for at fastq filename and "
+                                                                              "identify 1st fastq of a pair.")
+    parser.add_argument("-pR2", "--pattern_R2", type=str, default='_R2_', help="Regex to look for at fastq filename "
+                                                                               "and identify 2nd fastq of a pair.")
+    parser.add_argument("-pL", "--pattern_lane", type=str, default='_L[0-9]{3}[_\.]', help="Regex to look for at fastq"
+                                                                                           "filename to identify"
+                                                                                           "sequencing lane.")
+    parser.add_argument("-f", "--filename", type=str, default="Sarek_input.tsv", help="File name for Sarek input table.")
+    args = parser.parse_args()
 
-if __name__ == "__main__":
-    # TODO better test for len(sys.argv)
-    # TODO: print trees and organize dirs should be optional
-    # if len(sys.argv) < 1:
-    #     print_usage()
-    #     sys.exit("More parameters are expected.")
 
-    # project = sys.argv[1]
-    # sample_tsv = sys.argv[2]
-    # experiment_tsv = sys.argv[3]
-    # filename_contains = sys.argv[4]
-    # patternR1 = sys.argv[5]
-    # patternR2 = sys.argv[6]
-    # pattern_lane = sys.argv[7]
-    #
-    # inst = SelectVariantCalling(project)
-    # inst.create_VC_table(experiment_tsv, sample_tsv)
-    # inst.print_tree()
-    # inst.organize_dirs('.', filename_contains)
-    # inst.generate_input_file(patternR1, patternR2, pattern_lane)
-
-    inst = SelectVariantCalling('QBMEM')
-    inst.create_VC_table('entity-browser-grid-experiment.tsv', 'entity-browser-grid-sample-(all).tsv')
+    inst = SelectVariantCalling(args.project)
+    inst.create_VC_table(args.experiment_tsv, args.sample_tsv)
     inst.print_tree()
-    inst.organize_dirs('.', 'Secondary_name')
-    inst.generate_input_file()
-    inst.write_input_file()
-
+    inst.organize_dirs(args.path, args.contains)
+    inst.generate_input_file(args.patternR1, args.patternR2, args.pattern_lane)
+    inst.write_input_file(args.filename)
