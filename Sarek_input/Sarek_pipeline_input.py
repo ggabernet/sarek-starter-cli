@@ -129,9 +129,6 @@ class SelectVariantCalling:
         data_df.head()
         print 'Added boolean tumor annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1]
 
-        # Annotating VC name
-        data_df.loc[:, 'VC_name'] = data_df.loc[:, 'Test_sample_Code']
-
         # Selecting only DNA test samples
         data_dna_df = data_df[data_df['Test_sample_Sample type'] == 'DNA [DNA]']
         print 'Selected only DNA samples. Rows:', data_dna_df.shape[0], 'Cols:', data_dna_df.shape[1]
@@ -266,11 +263,9 @@ class SelectVariantCalling:
 
         VC_table_input = self.VC_table.merge(filenames_df, how='right',
                                               left_on='Test_sample_Code', right_on='Codes', suffixes=('', ''))
-        print VC_table_input
-        # TODO: VC_name is not needed
+
         VC_table_input = VC_table_input[['Entity', 'Sex', 'IsTumor', 'Codes', 'Lane', 'Fasta_R1', 'Fasta_R2']]
         self.input_df = VC_table_input
-        print self.input_df
         return self
 
     def write_input_file(self, file_name='Sarek_pipeline_input.txt'):
@@ -290,7 +285,7 @@ if __name__ == '__main__':
     parser.add_argument("project", type=str, help="QBiC project code for which VC should be calculated.")
     parser.add_argument("sample_tsv", type=str, help="Path to the sample table tsv file extracted from OpenBIS.")
     parser.add_argument("experiment_tsv", type=str, help="Path to the experiment table tsv file extracted from OpenBIS.")
-    parser.add_argument("-p", "--path", type=str, default=".", help="Path to folder with fastq files.")
+    parser.add_argument("-p", "--path", type=str, default="./", help="Path to folder with fastq files.")
     parser.add_argument("-c", "--contains", type=str, choices=['Test', 'Secondary_name'], default='Secondary_name',
                         help="String of the identifier that is contained in the fastq filename.\n "
                              "'Test' stands for QBiC test sample code.\n"
@@ -305,7 +300,6 @@ if __name__ == '__main__':
                                                                                            "sequencing lane.")
     parser.add_argument("-f", "--filename", type=str, default="Sarek_input.tsv", help="File name for Sarek input table.")
     args = parser.parse_args()
-
 
     inst = SelectVariantCalling(args.project)
     inst.create_VC_table(args.experiment_tsv, args.sample_tsv)
