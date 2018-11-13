@@ -7,6 +7,7 @@ import subprocess
 import sys
 import csv
 import argparse
+import os
 
 # Static functions
 
@@ -40,6 +41,7 @@ class SelectVariantCalling:
         self.code_pattern = re.compile(self.project + '[A-Z0-9]{4}[A-Z0-9-_]{0,6}')
         self.input_df = pd.DataFrame()
         self.fastq = []
+        self.path = ''
 
     def create_VC_table(self, experiment_tsv, sample_tsv):
         """
@@ -141,6 +143,7 @@ class SelectVariantCalling:
         self.fastq_paths = data_dna_df.loc[:, 'VCpath'].tolist()
         self.VC_table = data_dna_df
 
+
     def print_tree(self, file_name='tree.txt'):
         """
         Print tree structure of VC table in tree form. Requires usage of create_VC_table first
@@ -179,13 +182,13 @@ class SelectVariantCalling:
 
         tree_dict = items[self.project]
 
-        write_tree(tree_dict, file_name)
+        write_tree(tree_dict, self.path+file_name)
 
         self.tree = tree_dict
 
         return
 
-    def organize_dirs(self, path=".", file_name_contains='Test'):
+    def organize_dirs(self, path, file_name_contains='Test'):
         """
         Generating directory paths and organizing files into directories
         :param path: [str] path of the directory containing the fastq files.
@@ -195,6 +198,8 @@ class SelectVariantCalling:
         :return:
         """
 
+        self.path = path
+
         if file_name_contains == 'Test':
             fname_col = 'Test_sample_Code'
         elif file_name_contains == 'Secondary_name':
@@ -202,7 +207,9 @@ class SelectVariantCalling:
         else:
             sys.exit('Invalid file_name_contains paramter, choose from ["Test", "Secondary_name"].\n')
 
-        subprocess.call("cd %s" % path, shell=True, stdout=True)
+        wd = os.getcwd()
+        os.chdir(self.path)
+
 
         # Generating folders and sorting fastq files into folders
         for name, npath in zip(self.VC_table.loc[:, fname_col], self.VC_table.loc[:, 'VCpath'].tolist()):
@@ -211,6 +218,8 @@ class SelectVariantCalling:
 
         code_pattern = subprocess.Popen("find `pwd` -name '*.fastq.gz'", shell=True, stdout=subprocess.PIPE)
         out, err = code_pattern.communicate()
+
+        os.chdir(wd)
         fastqfiles = out.split("\n")
         self.fastq = sorted(fastqfiles)
         return
@@ -257,19 +266,24 @@ class SelectVariantCalling:
 
         VC_table_input = self.VC_table.merge(filenames_df, how='right',
                                               left_on='Test_sample_Code', right_on='Codes', suffixes=('', ''))
+        print VC_table_input
         # TODO: VC_name is not needed
         VC_table_input = VC_table_input[['Entity', 'Sex', 'IsTumor', 'Codes', 'Lane', 'Fasta_R1', 'Fasta_R2']]
         self.input_df = VC_table_input
+        print self.input_df
         return self
 
-    def write_input_file(self, file_name = 'Sarek_pipeline_input.txt'):
+    def write_input_file(self, file_name='Sarek_pipeline_input.txt'):
         """
         Write input table to file.
         :param file_name: [str] file name where to store the table.
         :return: input_df saved in file_name.
         """
-        self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE, quotechar='',
-                             doublequote=False)
+        if self.path:
+            file_name = self.path + file_name
+        self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
+                             quotechar='', doublequote=False, line_terminator='\n')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -277,12 +291,12 @@ if __name__ == '__main__':
     parser.add_argument("sample_tsv", type=str, help="Path to the sample table tsv file extracted from OpenBIS.")
     parser.add_argument("experiment_tsv", type=str, help="Path to the experiment table tsv file extracted from OpenBIS.")
     parser.add_argument("-p", "--path", type=str, default=".", help="Path to folder with fastq files.")
-    parser.add_argument("-c", "--contains", type=str, choices=['Test', 'Secondary_name'], default='Test',
+    parser.add_argument("-c", "--contains", type=str, choices=['Test', 'Secondary_name'], default='Secondary_name',
                         help="String of the identifier that is contained in the fastq filename.\n "
                              "'Test' stands for QBiC test sample code.\n"
-                             "'Secondary_name' stands for NGS sample secondary name "
+                             "'Secondary_name' stands for NGS sample secondary name (default)"
                              "(usu. Genetics ID).")
-    parser.add_argument("-pR1", "--patternR1", type=str, default='_R1_', help="Regex to look for at fastq filename and "
+    parser.add_argument("-pR1", "--pattern_R1", type=str, default='_R1_', help="Regex to look for at fastq filename and "
                                                                               "identify 1st fastq of a pair.")
     parser.add_argument("-pR2", "--pattern_R2", type=str, default='_R2_', help="Regex to look for at fastq filename "
                                                                                "and identify 2nd fastq of a pair.")
@@ -295,7 +309,7 @@ if __name__ == '__main__':
 
     inst = SelectVariantCalling(args.project)
     inst.create_VC_table(args.experiment_tsv, args.sample_tsv)
-    inst.print_tree()
     inst.organize_dirs(args.path, args.contains)
-    inst.generate_input_file(args.patternR1, args.patternR2, args.pattern_lane)
+    inst.print_tree()
+    inst.generate_input_file(args.pattern_R1, args.pattern_R2, args.pattern_lane)
     inst.write_input_file(args.filename)
