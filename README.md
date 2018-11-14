@@ -12,7 +12,7 @@ for example using qPostman [qPostman](https://github.com/qbicsoftware/postman-cl
   * Samples tsv: in OpenBIS Browse --> samples. Needed columns: Code, Parents, 
   Sample Type, Sample type, Project, Experiment, Additional information, 
   Secondary name, Primary tissue/body fluid. Export as tsv.
-  * Samples tsv: in OpenBIS Browse --> experiments. Look for your project. Needed
+  * Experiments tsv: in OpenBIS Browse --> experiments. Look for your project. Needed
   columns: Experiment, Project, Code, Additional information.
   
 ## Usage
