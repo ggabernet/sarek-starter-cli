@@ -6,7 +6,7 @@ for variant calling from a QBiC project stored in OpenBIS.
 ## Pre-requisites
 
 * Download the fastq files for all the samples that you want to call variants for, 
-for example using qPostman [qPostman](https://github.com/qbicsoftware/postman-cli).
+for example using [qPostman](https://github.com/qbicsoftware/postman-cli).
 
 * Download the all samples and all experiments tsv table for your project in OpenBIS.
   * Samples tsv: in OpenBIS Browse --> samples. Needed columns: Code, Parents, 
