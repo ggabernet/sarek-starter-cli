@@ -282,6 +282,8 @@ class SelectVariantCalling:
         """
         if self.path:
             file_name = self.path + "Sarek_input.tsv"
+        else:
+            file_name = "Sarek_input.tsv"
         self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
                              doublequote=False, line_terminator='\n')
         return self
@@ -323,7 +325,8 @@ if __name__ == '__main__':
     parser.add_argument("-pL", "--pattern_lane", type=str, default='_L[0-9]{3}[_\.]', help="Regex to look for at fastq"
                                                                                            "filename to identify"
                                                                                            "sequencing lane.")
-    #TODO: add option create one or multiple tsv
+    parser.add_argument("-m", "--multiple", help="Create a separate input file for each entity/patient.")
+
     args = parser.parse_args()
 
     inst = SelectVariantCalling(args.project)
@@ -331,5 +334,9 @@ if __name__ == '__main__':
     inst.organize_dirs(args.path, args.contains)
     inst.print_tree()
     inst.generate_input_file(args.pattern_R1, args.pattern_R2, args.pattern_lane)
-   # inst.write_input_file(args.filename)
-    inst.write_multiple_input_files()
+    if args.project:
+        print "Created an input file per patient."
+        inst.write_multiple_input_files()
+    else:
+        print "Created a single input file for all patients."
+        inst.write_input_file()
