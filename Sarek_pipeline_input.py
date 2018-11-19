@@ -274,17 +274,35 @@ class SelectVariantCalling:
         self.input_df = VC_table_input
         return self
 
-    def write_input_file(self, file_name='Sarek_pipeline_input.txt'):
+    def write_input_file(self):
         """
         Write input table to file.
         :param file_name: [str] file name where to store the table.
         :return: input_df saved in file_name.
         """
         if self.path:
-            file_name = self.path + file_name
+            file_name = self.path + "Sarek_input.tsv"
         self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
                              quotechar='', doublequote=False, line_terminator='\n')
         return self
+
+    def write_multiple_input_files(self):
+        """
+        Write input table to multiple input files, one input file per patient.
+        :return: input_df saved into one tsv input file per patient. Name of files contains patient ID.
+        """
+        df = self.input_df
+        df.sort_values(by='Entity', axis=0, inplace=True)
+        patients = df['Entity'].unique().tolist()
+        df.set_index(keys=['Entity'], drop=False, inplace=True)
+        df_list = [(pat, df.loc[df.Patient == pat]) for pat in patients]
+        for name, df_pat in df_list:
+            if self.path:
+                file_name = self.path + name + ".tsv"
+            else:
+                file_name = name + ".tsv"
+            df_pat.to_csv(file_name, sep='t', header=False, index=False, quoting=csv.QUOTE_NONE,
+                          quotechar='', doublequote=False, line_terminator='\n')
 
 
 if __name__ == '__main__':
@@ -305,7 +323,7 @@ if __name__ == '__main__':
     parser.add_argument("-pL", "--pattern_lane", type=str, default='_L[0-9]{3}[_\.]', help="Regex to look for at fastq"
                                                                                            "filename to identify"
                                                                                            "sequencing lane.")
-    parser.add_argument("-f", "--filename", type=str, default="Sarek_input.tsv", help="File name for Sarek input table.")
+    #TODO: add option create one or multiple tsv
     args = parser.parse_args()
 
     inst = SelectVariantCalling(args.project)
@@ -313,4 +331,5 @@ if __name__ == '__main__':
     inst.organize_dirs(args.path, args.contains)
     inst.print_tree()
     inst.generate_input_file(args.pattern_R1, args.pattern_R2, args.pattern_lane)
-    inst.write_input_file(args.filename)
+   # inst.write_input_file(args.filename)
+    inst.write_multiple_input_files()
