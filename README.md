@@ -23,7 +23,7 @@ Execute without arguments or with -h to get an overview of the options:
 
 usage: Sarek_pipeline_input.py [-h] [-p PATH] [-c {Test,Secondary_name}]
                                [-pR1 PATTERN_R1] [-pR2 PATTERN_R2]
-                               [-pL PATTERN_LANE] [-m MULTIPLE]
+                               [-pL PATTERN_LANE] [-m]
                                project sample_tsv experiment_tsv
 
 positional arguments:
@@ -50,6 +50,6 @@ optional arguments:
   -pL PATTERN_LANE, --pattern_lane PATTERN_LANE
                         Regex to look for at fastqfilename to
                         identifysequencing lane.
-  -m MULTIPLE, --multiple MULTIPLE
-                        Create a separate input file for each entity/patient.
+  -m, --multiple        Create a separate input file for each entity/patient.
+
 ```
