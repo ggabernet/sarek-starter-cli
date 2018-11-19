@@ -283,7 +283,7 @@ class SelectVariantCalling:
         if self.path:
             file_name = self.path + "Sarek_input.tsv"
         self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
-                             quotechar='', doublequote=False, line_terminator='\n')
+                             doublequote=False, line_terminator='\n')
         return self
 
     def write_multiple_input_files(self):
@@ -295,14 +295,14 @@ class SelectVariantCalling:
         df.sort_values(by='Entity', axis=0, inplace=True)
         patients = df['Entity'].unique().tolist()
         df.set_index(keys=['Entity'], drop=False, inplace=True)
-        df_list = [(pat, df.loc[df.Patient == pat]) for pat in patients]
+        df_list = [(pat, df.loc[df.Entity == pat]) for pat in patients]
         for name, df_pat in df_list:
             if self.path:
                 file_name = self.path + name + ".tsv"
             else:
                 file_name = name + ".tsv"
-            df_pat.to_csv(file_name, sep='t', header=False, index=False, quoting=csv.QUOTE_NONE,
-                          quotechar='', doublequote=False, line_terminator='\n')
+            df_pat.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
+                          doublequote=False, line_terminator='\n')
 
 
 if __name__ == '__main__':
