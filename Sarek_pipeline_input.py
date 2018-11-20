@@ -259,9 +259,9 @@ class SelectVariantCalling:
         filenames_df = pd.DataFrame({'Lane': fasta_lanes, 'Fasta_R1': fasta_R1, 'Fasta_R2': fasta_R2})
 
         test_codes = []
-        for n, path in enumerate(self.VC_table.loc[:,'VCpath'].tolist()):
+        for n, path in enumerate(self.VC_table.loc[:, 'VCpath'].tolist()):
             idx = [bool(re.search(path, filename)) for filename in filenames_df.loc[:,'Fasta_R1']]
-            test_codes = test_codes + [self.VC_table.loc[n, 'Test_sample_Code']] * sum(idx)
+            test_codes = test_codes + [self.VC_table.loc[str(n), 'Test_sample_Code']] * sum(idx)
 
         filenames_df.loc[:, 'Codes'] = test_codes
         # TODO: sex is currently hard-coded

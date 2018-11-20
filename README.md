@@ -19,7 +19,7 @@ for example using [qPostman](https://github.com/qbicsoftware/postman-cli).
 Load the conda package or your favourite python package manager (python 2.7 and pandas package is required). E.g. in new CFC cluster:
 
 ```
-module load qbic/anaconda2/2.1.0
+module load qbic/anaconda2/5.3.0
 ```
 
 Execute without arguments or with -h to get an overview of the options:
