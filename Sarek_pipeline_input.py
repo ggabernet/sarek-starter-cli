@@ -11,6 +11,7 @@ import os
 
 pd.options.mode.chained_assignment = None
 
+
 # Static functions
 
 
@@ -45,16 +46,17 @@ class SelectVariantCalling:
         self.fastq = []
         self.path = ''
 
-    def create_VC_table(self, experiment_tsv, sample_tsv):
+    def create_VC_table(self, experiment_tsv, sample_tsv, tumor_pattern):
         """
         Reads experiment and sample tsv tables and processes them and merges them to produce a dataframe of DNA samples
         ready for extracting the information for variant calling analysis.
         :param experiment_tsv: [file .tsv] all experiments for the project as extracted from the openBIS database.
         :param sample_tsv: [file .tsv] all samples for the project as extracted from the openBIS database.
+        :param tumor_pattern: [regex (str)] pattern to look for in tissue description to find tumor samples.
         :return: Variant calling data table as pandas dataframe in attribute VC_table
         """
-        exp_df = pd.read_csv(experiment_tsv, sep='\t')
-        sample_df = pd.read_csv(sample_tsv, sep='\t')
+        exp_df = pd.read_csv(experiment_tsv, sep='\t', error_bad_lines=False, index_col=False, header=0)
+        sample_df = pd.read_csv(sample_tsv, sep='\t', error_bad_lines=False, index_col=False, header=0)
 
         sample_df = sample_df[sample_df.loc[:, 'Project'] == self.project]
 
@@ -123,26 +125,23 @@ class SelectVariantCalling:
         print 'Eliminated rows with no tissue annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1]
 
         # Annotating if tumor
-        # TODO: give possibility of changing tumor regex
-        tumor_name = re.compile('[Tt][uU][mM][oO][rR]')
+        tumor_name = re.compile(tumor_pattern)
         data_df.loc[:, 'IsTumor'] = [1 if bool(re.search(tumor_name, row)) else 0 for row in
-                              data_df.loc[:, 'Biol_sample_Primary tissue/body fluid']]
+                                     data_df.loc[:, 'Biol_sample_Primary tissue/body fluid']]
         data_df.loc[:, 'Status'] = ['Tumor' if row == 1 else 'Normal' for row in data_df.loc[:, 'IsTumor']]
         data_df.head()
         print 'Added boolean tumor annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1]
 
         # Selecting only DNA test samples
-        data_dna_df = data_df[data_df.loc[:,'Test_sample_Sample type'] == 'DNA [DNA]']
+        data_dna_df = data_df[data_df.loc[:, 'Test_sample_Sample type'] == 'DNA [DNA]']
         print 'Selected only DNA samples. Rows:', data_dna_df.shape[0], 'Cols:', data_dna_df.shape[1]
 
-        # Defining path
         data_dna_df.loc[:, 'VCpath'] = [i + '/' + j + '/' + k + '/' + l + '/' for i, j, k, l in
                                         zip(data_dna_df.loc[:, 'Entity'], data_dna_df.loc[:, 'Biol_sample_Code'],
                                             data_dna_df.loc[:, 'Status'], data_dna_df.loc[:, 'Test_sample_Code'])]
         self.fastq_paths = data_dna_df.loc[:, 'VCpath'].tolist()
-        self.VC_table = data_dna_df
+        self.VC_table = data_dna_df.sort_values('VCpath', axis=0, ascending=True)
         return self
-
 
     def print_tree(self, file_name='tree.txt'):
         """
@@ -163,9 +162,9 @@ class SelectVariantCalling:
         parent_test = self.VC_table.loc[:, 'Test_sample_Parents_code'].tolist()
 
         child_biol = self.VC_table.loc[:, 'Biol_sample_Code'].tolist()
-        parent_biol = self.VC_table.loc[:, 'Biol_sample_Parents_code'].tolist()
+        parent_biol = self.VC_table.loc[:, 'Entity'].tolist()
 
-        child_entity = self.VC_table.loc[:, 'Biol_sample_Parents_code'].tolist()
+        child_entity = self.VC_table.loc[:, 'Entity'].tolist()
         parent_entity = self.VC_table.loc[:, 'Biol_sample_Project'].tolist()
 
         child = child_status + child_NGS + child_test + child_biol + child_entity
@@ -182,7 +181,7 @@ class SelectVariantCalling:
 
         tree_dict = items[self.project]
 
-        write_tree(tree_dict, self.path+file_name)
+        write_tree(tree_dict, self.path + file_name)
 
         self.tree = tree_dict
 
@@ -225,10 +224,11 @@ class SelectVariantCalling:
         if len(fastqfiles) < 2:
             sys.exit("No full fastq files pair in the current folder. Please especify the path in --path.")
         self.fastq = sorted(fastqfiles)
+        # print self.fastq
         return self
 
-    def generate_input_file(self, patternR1='_R1_', patternR2='_R2_',
-                            pattern_lane='_L[0-9]{3}[_\.]'):
+    def generate_input_file(self, patternR1, patternR2,
+                            pattern_lane):
         """
         Generating input file
         :param patternR1: [str, regex] regular expression for fastq files pair 1.
@@ -243,41 +243,44 @@ class SelectVariantCalling:
         # Separating R1 and R2 fastq files
         fastqfiles = self.fastq
 
-        fasta_R1 = [filename if bool(re.search(p_R1, filename)) else '' for filename in fastqfiles]
-        fasta_R2 = [filename if bool(re.search(p_R2, filename)) else '' for filename in fastqfiles]
+        fastq_R1 = [filename if bool(re.search(p_R1, filename)) else '' for filename in fastqfiles]
+        fastq_R2 = [filename if bool(re.search(p_R2, filename)) else '' for filename in fastqfiles]
 
-        fasta_R1 = filter(None, sorted(fasta_R1))
-        fasta_R2 = filter(None, sorted(fasta_R2))
+        fastq_R1 = filter(None, sorted(fastq_R1))
+        fastq_R2 = filter(None, sorted(fastq_R2))
 
-        if len(fasta_R1) != len(fasta_R2):
-            sys.exit("The fasta files were not correctly paired, different number of R1 and R2.")
+        if len(fastq_R1) != len(fastq_R2):
+            sys.exit("The fastQ files were not correctly paired, different number of R1 and R2.")
 
         # Searching for lanes
         # TODO: add test for if lanes is empty give always same lane.
-        fasta_lanes = [re.search(p_lane, filename).group(0) for filename in fasta_R1]
+        fastq_lanes = [re.search(p_lane, filename).group(0) for filename in fastq_R1]
 
-        filenames_df = pd.DataFrame({'Lane': fasta_lanes, 'Fasta_R1': fasta_R1, 'Fasta_R2': fasta_R2})
+        filenames_df = pd.DataFrame({'Lane': fastq_lanes, 'Fastq_R1': fastq_R1, 'Fastq_R2': fastq_R2})
 
-        test_codes = []
-        for n, path in enumerate(self.VC_table.loc[:, 'VCpath'].tolist()):
-            idx = [bool(re.search(path, filename)) for filename in filenames_df.loc[:,'Fasta_R1']]
-            test_codes = test_codes + [self.VC_table.loc[str(n), 'Test_sample_Code']] * sum(idx)
-
+        test_codes = [os.path.basename(os.path.dirname(path)) for path in filenames_df.loc[:, 'Fastq_R1']]
         filenames_df.loc[:, 'Codes'] = test_codes
+
         # TODO: sex is currently hard-coded
         filenames_df.loc[:, 'Sex'] = ['XY'] * len(test_codes)
 
         VC_table_input = self.VC_table.merge(filenames_df, how='right',
-                                              left_on='Test_sample_Code', right_on='Codes', suffixes=('', ''))
+                                             left_on='Test_sample_Code', right_on='Codes', suffixes=('', ''))
 
-        VC_table_input = VC_table_input.loc[:, ['Entity', 'Sex', 'IsTumor', 'Codes', 'Lane', 'Fasta_R1', 'Fasta_R2']]
-        self.input_df = VC_table_input
+        if self.path:
+            file_name = self.path + "OpenBIS_merged.tsv"
+        else:
+            file_name = "OpenBIS_merged.tsv"
+        VC_table_input.to_csv(file_name, sep='\t', header=True, index=False, quoting=csv.QUOTE_NONE,
+                             doublequote=False, line_terminator='\n')
+
+        VC_sarek_input = VC_table_input.loc[:, ['Entity', 'Sex', 'IsTumor', 'Codes', 'Lane', 'Fastq_R1', 'Fastq_R2']]
+        self.input_df = VC_sarek_input
         return self
 
     def write_input_file(self):
         """
         Write input table to file.
-        :param file_name: [str] file name where to store the table.
         :return: input_df saved in file_name.
         """
         if self.path:
@@ -311,27 +314,34 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("project", type=str, help="QBiC project code for which VC should be calculated.")
     parser.add_argument("sample_tsv", type=str, help="Path to the sample table tsv file extracted from OpenBIS.")
-    parser.add_argument("experiment_tsv", type=str, help="Path to the experiment table tsv file extracted from OpenBIS.")
+    parser.add_argument("experiment_tsv", type=str,
+                        help="Path to the experiment table tsv file extracted from OpenBIS.")
     parser.add_argument("-p", "--path", type=str, default="./", help="Path to folder with fastq files.")
     parser.add_argument("-c", "--contains", type=str, choices=['Test', 'Secondary_name'], default='Secondary_name',
-                        help="String of the identifier that is contained in the fastq filename.\n "
-                             "'Test' stands for QBiC test sample code.\n"
+                        help="String of the identifier that is contained in the fastq filename. "
+                             "'Test' stands for QBiC test sample code."
                              "'Secondary_name' stands for NGS sample secondary name (default)"
                              "(usu. Genetics ID).")
-    parser.add_argument("-pR1", "--pattern_R1", type=str, default='_R1_', help="Regex to look for at fastq filename and "
-                                                                              "identify 1st fastq of a pair.")
+    parser.add_argument("-pT", "--pattern_tumor", type=str, default='[Tt][uU][mM][oO][rR]', help="Regex to look for at "
+                                                                                                 "OpenBIS tissue annotation to find tumor samples. Default: '[Tt][uU][mM][oO][rR]'")
+    parser.add_argument("-pR1", "--pattern_R1", type=str, default='_R1_',
+                        help="Regex to look for at fastq filename and "
+                             "identify 1st fastq of a pair. "
+                             "Default: '_R1_'")
     parser.add_argument("-pR2", "--pattern_R2", type=str, default='_R2_', help="Regex to look for at fastq filename "
-                                                                               "and identify 2nd fastq of a pair.")
+                                                                               "and identify 2nd fastq of a pair. "
+                                                                               "Default: '_R2_'")
     parser.add_argument("-pL", "--pattern_lane", type=str, default='_L[0-9]{3}[_\.]', help="Regex to look for at fastq"
                                                                                            "filename to identify"
-                                                                                           "sequencing lane.")
+                                                                                           "sequencing lane. "
+                                                                                           "Default: '_L[0-9]{3}[_\.]'")
     parser.add_argument("-m", "--multiple", help="Create a separate input file for each entity/patient.",
                         action="store_true")
 
     args = parser.parse_args()
 
     inst = SelectVariantCalling(args.project)
-    inst.create_VC_table(args.experiment_tsv, args.sample_tsv)
+    inst.create_VC_table(args.experiment_tsv, args.sample_tsv, args.pattern_tumor)
     inst.organize_dirs(args.path, args.contains)
     inst.print_tree()
     inst.generate_input_file(args.pattern_R1, args.pattern_R2, args.pattern_lane)
