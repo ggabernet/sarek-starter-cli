@@ -11,10 +11,7 @@ import os
 
 pd.options.mode.chained_assignment = None
 
-
 # Static functions
-
-
 def _pretty_tree(d, f, indent=0):
     for key, value in d.items():
         f.write('\t' * indent + '|_' + str(key) + '\n')
@@ -278,15 +275,15 @@ class SelectVariantCalling:
         self.input_df = VC_sarek_input
         return self
 
-    def write_input_file(self):
+    def write_input_file(self, filename="Sarek_input.tsv"):
         """
         Write input table to file.
         :return: input_df saved in file_name.
         """
         if self.path:
-            file_name = self.path + "Sarek_input.tsv"
+            file_name = self.path + filename
         else:
-            file_name = "Sarek_input.tsv"
+            file_name = filename
         self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
                              doublequote=False, line_terminator='\n')
         return self
@@ -327,9 +324,5 @@ if __name__ == '__main__':
     inst.organize_dirs(args.path, args.contains)
     inst.print_tree()
     inst.generate_input_file(args.pattern_R1, args.pattern_R2, args.pattern_lane)
-    if args.multiple:
-        print "Created an input file per patient."
-        inst.write_multiple_input_files()
-    else:
-        print "Created a single input file for all patients."
-        inst.write_input_file()
+    print("Created an input file with all samples.")
+    inst.write_input_file()
