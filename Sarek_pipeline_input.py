@@ -66,8 +66,8 @@ class SelectVariantCalling:
                                                     if self.code_pattern.search(str(row)) else '' for row in
                                                     ngs_df.loc[:, 'NGS_sample_Parents']]
         if ngs_df[ngs_df.loc[:, 'NGS_sample_Parents_code'] == ''].shape[0] > 0:
-            print "These samples do not have parents and won't be considered:"
-            print ngs_df[ngs_df.loc[:, 'NGS_sample_Parents_code'] == ''].loc[:, 'NGS_sample_Code'].tolist()
+            print("These samples do not have parents and won't be considered:")
+            print(ngs_df[ngs_df.loc[:, 'NGS_sample_Parents_code'] == ''].loc[:, 'NGS_sample_Code'].tolist())
 
         test_df = sample_df[sample_df.loc[:, 'Sample Type'] == 'Q_TEST_SAMPLE']
         test_df.columns = ["Test_sample_" + i for i in test_df.columns]
@@ -76,8 +76,8 @@ class SelectVariantCalling:
                                                       test_df.loc[:, 'Test_sample_Parents']]
         test_df.head()
         if test_df[test_df.loc[:, 'Test_sample_Parents_code'] == ''].shape[0] > 0:
-            print "These samples do not have parents and won't be considered:"
-            print test_df[test_df.loc[:, 'Test_sample_Parents_code'] == '']
+            print("These samples do not have parents and won't be considered:")
+            print(test_df[test_df.loc[:, 'Test_sample_Parents_code'] == ''])
 
         biol_df = sample_df[sample_df.loc[:, 'Sample Type'] == 'Q_BIOLOGICAL_SAMPLE']
         biol_df.columns = ["Biol_sample_" + i for i in biol_df.columns]
@@ -86,8 +86,8 @@ class SelectVariantCalling:
                                                       biol_df.loc[:, 'Biol_sample_Parents']]
         biol_df.head()
         if biol_df[biol_df.loc[:, 'Biol_sample_Parents_code'] == ''].shape[0] > 0:
-            print "These samples do not have parents and won't be considered:"
-            print biol_df[biol_df.loc[:, 'Biol_sample_Parents_code'] == '']
+            print("These samples do not have parents and won't be considered:")
+            print(biol_df[biol_df.loc[:, 'Biol_sample_Parents_code'] == ''])
 
         exp_df = exp_df[exp_df.loc[:, 'Experiment Type'] == 'Q_NGS_MEASUREMENT']
         exp_df.columns = ["Exp_" + i for i in exp_df.columns]
@@ -114,15 +114,15 @@ class SelectVariantCalling:
 
         # Renaming merged dataframe
         data_df = ngs_exp_test_biol_entity_df
-        print 'Created merged data frame. Rows:', data_df.shape[0], ', Cols:', data_df.shape[1]
+        print('Created merged data frame. Rows:', data_df.shape[0], ', Cols:', data_df.shape[1])
 
         # Dropping columns where all values are NaN
         data_df = data_df.dropna(axis=1, how='all')
-        print 'Eliminated empty columns. Rows:', data_df.shape[0], ', Cols:', data_df.shape[1]
+        print('Eliminated empty columns. Rows:', data_df.shape[0], ', Cols:', data_df.shape[1])
 
         # Dropping rows where tissue is NaN (can't determine if tumor or not)
         data_df = data_df.dropna(axis=0, how='any', subset=['Biol_sample_Primary tissue/body fluid'])
-        print 'Eliminated rows with no tissue annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1]
+        print('Eliminated rows with no tissue annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1])
 
         # Annotating if tumor
         tumor_name = re.compile(tumor_pattern)
@@ -130,11 +130,11 @@ class SelectVariantCalling:
                                      data_df.loc[:, 'Biol_sample_Primary tissue/body fluid']]
         data_df.loc[:, 'Status'] = ['Tumor' if row == 1 else 'Normal' for row in data_df.loc[:, 'IsTumor']]
         data_df.head()
-        print 'Added boolean tumor annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1]
+        print('Added boolean tumor annotation. Rows:', data_df.shape[0], 'Cols:', data_df.shape[1])
 
         # Selecting only DNA test samples
         data_dna_df = data_df[data_df.loc[:, 'Test_sample_Sample type'] == 'DNA [DNA]']
-        print 'Selected only DNA samples. Rows:', data_dna_df.shape[0], 'Cols:', data_dna_df.shape[1]
+        print('Selected only DNA samples. Rows:', data_dna_df.shape[0], 'Cols:', data_dna_df.shape[1])
 
         data_dna_df.loc[:, 'VCpath'] = [i + '/' + j + '/' + k + '/' + l + '/' for i, j, k, l in
                                         zip(data_dna_df.loc[:, 'Entity'], data_dna_df.loc[:, 'Biol_sample_Code'],
@@ -290,24 +290,6 @@ class SelectVariantCalling:
         self.input_df.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
                              doublequote=False, line_terminator='\n')
         return self
-
-    def write_multiple_input_files(self):
-        """
-        Write input table to multiple input files, one input file per patient.
-        :return: input_df saved into one tsv input file per patient. Name of files contains patient ID.
-        """
-        df = self.input_df
-        df.sort_values(by='Entity', axis=0, inplace=True)
-        patients = df['Entity'].unique().tolist()
-        df.set_index(keys=['Entity'], drop=False, inplace=True)
-        df_list = [(pat, df.loc[df.Entity == pat]) for pat in patients]
-        for name, df_pat in df_list:
-            if self.path:
-                file_name = self.path + name + ".tsv"
-            else:
-                file_name = name + ".tsv"
-            df_pat.to_csv(file_name, sep='\t', header=False, index=False, quoting=csv.QUOTE_NONE,
-                          doublequote=False, line_terminator='\n')
 
 
 if __name__ == '__main__':
